@@ -1,0 +1,17 @@
+{
+  "name": "newsblitz",
+  "version": "1.0.0",
+  "description": "NewsBlitz - Multiplayer AI Trivia Game on GenLayer",
+  "type": "module",
+  "scripts": {
+    "deploy": "genlayer deploy",
+    "dev": "cd frontend && npm run dev",
+    "build": "cd frontend && npm run build"
+  },
+  "devDependencies": {
+    "genlayer-js": "^0.18.3",
+    "typescript": "^5.0.0",
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.9.0"
+  }
+}
