@@ -142,6 +142,27 @@ async function sendTx(functionName: string, args: unknown[]): Promise<any> {
   return receipt;
 }
 
+export interface GlobalLeaderboardEntry {
+  address:       string;
+  total_score:   number;
+  games:         number;
+  total_correct: number;
+}
+
+export interface GlobalLeaderboard {
+  leaderboard: GlobalLeaderboardEntry[];
+  total:       number;
+}
+
+export async function getGlobalLeaderboard(): Promise<GlobalLeaderboard> {
+  const raw = await getReadClient().readContract({
+    address: ADDR as `0x${string}`,
+    functionName: "get_global_leaderboard",
+    args: [],
+  });
+  return JSON.parse(raw as string) as GlobalLeaderboard;
+}
+
 export const createRoom   = (roomId: string, topic: string)                           => sendTx("create_room",   [roomId, topic]);
 export const joinRoom     = (roomId: string)                                           => sendTx("join_room",     [roomId]);
 export const startGame    = (roomId: string)                                           => sendTx("start_game",    [roomId]);

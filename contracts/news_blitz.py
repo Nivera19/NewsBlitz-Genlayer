@@ -7,6 +7,7 @@ import json
 class NewsBlitz(gl.Contract):
     rooms: TreeMap[str, str]
     weekly_plays: TreeMap[str, u32]
+    global_lb: TreeMap[str, str]   # key "data" → JSON array of all-time scores
 
     def __init__(self):
         pass
@@ -30,7 +31,6 @@ class NewsBlitz(gl.Contract):
         rss_url = rss_urls[topic]
 
         def leader_fn():
-            # Use web.get for raw RSS/XML — more reliable than web.render for feeds
             response = gl.nondet.web.get(rss_url)
             rss_content = response.body.decode("utf-8", errors="replace")[:4000]
             prompt = (
@@ -106,7 +106,6 @@ class NewsBlitz(gl.Contract):
 
         q = room["questions"][q_index]
 
-        # Both leader and validators independently check correctness (binary decision).
         def leader_fn():
             prompt = (
                 f"Question: {q['text']}\n"
@@ -154,8 +153,50 @@ class NewsBlitz(gl.Contract):
         assert room["status"] == "playing", "Game not active"
         room["status"] = "finished"
         self.rooms[room_id] = json.dumps(room)
+
+        # Update weekly plays
         for addr in room["players"]:
             self.weekly_plays[f"{room_id}:{addr}"] = u32(1)
+
+        # Update global leaderboard
+        if "data" in self.global_lb:
+            try:
+                global_data = json.loads(self.global_lb["data"])
+            except Exception:
+                global_data = []
+        else:
+            global_data = []
+
+        scores_dict = {entry["address"]: entry for entry in global_data}
+
+        for addr, player_state in room["players"].items():
+            game_score = player_state["score"]
+            game_correct = sum(1 for a in player_state["answers"] if a["correct"])
+            if addr in scores_dict:
+                scores_dict[addr]["total_score"] += game_score
+                scores_dict[addr]["games"] += 1
+                scores_dict[addr]["total_correct"] += game_correct
+            else:
+                scores_dict[addr] = {
+                    "address":       addr,
+                    "total_score":   game_score,
+                    "games":         1,
+                    "total_correct": game_correct,
+                }
+
+        global_list = sorted(scores_dict.values(), key=lambda x: x["total_score"], reverse=True)[:50]
+        self.global_lb["data"] = json.dumps(global_list)
+
+    @gl.public.view
+    def get_global_leaderboard(self) -> str:
+        if "data" in self.global_lb:
+            try:
+                data = json.loads(self.global_lb["data"])
+            except Exception:
+                data = []
+        else:
+            data = []
+        return json.dumps({"leaderboard": data, "total": len(data)})
 
     @gl.public.view
     def get_room_info(self, room_id: str) -> str:
